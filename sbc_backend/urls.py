@@ -34,7 +34,7 @@ urlpatterns = [
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/users/', include('users_api.urls')),
-    path('api/departments/', include('departments_api.urls')),  # Add this
+    path('api/colleges/', include('colleges_api.urls')),  # Add this
     
     
 ]

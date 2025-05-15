@@ -39,10 +39,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'users_api',
-    'departments_api',
-    'programs_api',
-    'courses_api',
-    'course_teacher_api',
+    'colleges_api',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -120,15 +117,20 @@ WSGI_APPLICATION = 'sbc_backend.wsgi.application'
 # }
 
 DATABASES = {
+    
     'default': {
+        
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'biometric',
         'USER': 'postgres',
-        'PASSWORD': '12345',
+        'PASSWORD': '1234',
         'HOST': 'localhost',  
         'PORT': '5432',       
     }
+    
+    
 }
+
 
 
 # Password validation

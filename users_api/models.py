@@ -1,10 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
-from departments_api.models import Department
-from programs_api.models import Program 
+from colleges_api.models import Department
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
-
 
 
 class CustomUserManager(BaseUserManager):
@@ -54,7 +52,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     ]
     
 
-
     username = models.CharField(max_length=255, unique=True)
     email = models.EmailField(blank=False, unique=True)
     first_name = models.CharField(max_length=30, blank=True)
@@ -65,9 +62,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(auto_now_add=True)
     role = models.CharField(null=False , max_length=20, choices=ROLE_CHOICES)
     department = models.CharField(max_length=100, blank=True, null=True)
-    # profile = models.OneToOneField('Profile', on_delete=models.CASCADE, null=True, blank=True)
+    
 
-    # Additional fields for your custom user
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'username'
@@ -76,8 +72,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.username
 
+class AcademicYear(models.Model):
+    year = models.CharField(max_length=20, unique=True)  # e.g., "2022/2023"
 
-# Create your models here.
+    def __str__(self):
+        return self.year
+
+
 class Profile(models.Model):
     
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, null=True)
@@ -85,11 +86,120 @@ class Profile(models.Model):
     nida = models.CharField(max_length=255, unique=True)
     phone_number = models.CharField(max_length=30)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
-    program = models.ForeignKey(Program, on_delete=models.SET_NULL, null=True, blank=True)
     image = models.ImageField(upload_to='profiles/', null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username}"
     
     
+class PaymentRecord(models.Model):
+    
+    PAYMENT_TYPE_CHOICES = [
+    ('Tuition Fees-Undergraduate', 'Tuition Fees-Undergraduate'),
+   ]
+    
+    PAYMENT_REMARKS = [
+         ('Private','Private'),
+         ('HESLB','HESLB'),
+    ]
+
+    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    date = models.DateField()
+    type = models.CharField(max_length=20, choices=[('Receipt', 'Receipt'), ('Bill', 'Bill')])
+    payment_type = models.CharField(
+        max_length=100,
+        choices=PAYMENT_TYPE_CHOICES
+    )
+    remark = models.CharField(max_length=100, choices=PAYMENT_REMARKS)
+    reference_no = models.CharField(max_length=100)
+    fee = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    payment = models.DecimalField(max_digits=12, decimal_places=2)
+    balance = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        ordering = ['date']
+
+    def __str__(self):
+        return f"{self.student.username} - {self.payment_type} - {self.date}"
+
+
+class OtherPaymentRecord(models.Model):
+    
+    PAYMENT_TYPE_CHOICES = [
+        
+        ('Accommodation Fees', 'Accommodation Fees'),
+        ('Quality Assurance Collection', 'Quality Assurance Collection'),
+        ('Health Services Income', 'Health Services Income'),
+        ('Contribution to UDOM', 'Contribution to UDOM'),
+        ('Other', 'Other'),
+    ]
+    
+    PAYMENT_REMARKS = [
+         ('Private','Private'),
+         ('Standard Bills','Standard Bills'),
+    ] 
+        
+    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    date = models.DateField()
+    type = models.CharField(max_length=20, choices=[('Receipt', 'Receipt'), ('Bill', 'Bill')])
+    payment_type = models.CharField(max_length=100, choices=PAYMENT_TYPE_CHOICES )
+    remark = models.CharField(max_length=100, choices=PAYMENT_REMARKS)
+    reference_no = models.CharField(max_length=100, null=True)
+    fee = models.DecimalField(max_digits=12, decimal_places=2)
+    payment = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    balance = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+
+    class Meta:
+        ordering = ['date']
+
+    def __str__(self):
+        return f"{self.student.username} - {self.payment_type} - {self.date}"
+
+
+
+class TranscriptCertificateRequest(models.Model):
+    REQUEST_TYPE_CHOICES = [
+        ('both', 'Certificate and Transcript'),
+        ('certificate', 'Certificate Only'),
+        ('transcript', 'Transcript Only'),
+    ]
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    request_type = models.CharField(max_length=20, choices=REQUEST_TYPE_CHOICES)
+    number_of_copies = models.PositiveIntegerField()
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    bursar_verified = models.BooleanField(default=False)
+    hod_verified = models.BooleanField(default=False)
+    exam_officer_approved = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user} - {self.get_request_type_display()}"
+    
+    
+    
+class ProvisionalResultRequest(models.Model):
+    SEMESTER_RANGE_CHOICES = [
+        ('one', 'Semester I'),
+        ('two', 'Semester II'),
+        
+    ]
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    current_address = models.CharField(max_length=255)
+    email_or_phone = models.CharField(max_length=100)
+    year_of_admission = models.CharField(max_length=20)
+    year_of_study = models.CharField(max_length=20)
+    programme = models.CharField(max_length=255)
+    semester_range = models.CharField(max_length=30, choices=SEMESTER_RANGE_CHOICES)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    bursar_verified = models.BooleanField(default=False)
+    hod_verified = models.BooleanField(default=False)
+    exam_officer_approved = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Provisional Request by {self.user}"
 

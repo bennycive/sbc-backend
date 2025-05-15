@@ -1,9 +1,10 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
-from .models import CustomUser, Profile
-from departments_api.models import Department
-from programs_api.models import Program
+from .models import CustomUser, Profile,AcademicYear, PaymentRecord, OtherPaymentRecord
+from colleges_api.models import Department
+from .models import TranscriptCertificateRequest, ProvisionalResultRequest
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -60,4 +61,31 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = ['id','user', 'yos', 'nida', 'phone_number', 'department', 'program', 'image']
 
 
+class AcademicYearSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AcademicYear
+        fields = '__all__'
 
+
+class PaymentRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentRecord
+        fields = '__all__'
+
+class OtherPaymentRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OtherPaymentRecord
+        fields = '__all__'
+        
+        
+class TranscriptCertificateRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TranscriptCertificateRequest
+        fields = '__all__'
+
+class ProvisionalResultRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProvisionalResultRequest
+        fields = '__all__'
+        
+        
