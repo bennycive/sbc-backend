@@ -58,16 +58,14 @@ class OtherPaymentRecordViewSet(viewsets.ModelViewSet):
 class TranscriptCertificateRequestViewSet(viewsets.ModelViewSet):
     queryset = TranscriptCertificateRequest.objects.all().order_by('-submitted_at')
     serializer_class = TranscriptCertificateRequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+    
 
 
 class ProvisionalResultRequestViewSet(viewsets.ModelViewSet):
     queryset = ProvisionalResultRequest.objects.all().order_by('-submitted_at')
     serializer_class = ProvisionalResultRequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+    

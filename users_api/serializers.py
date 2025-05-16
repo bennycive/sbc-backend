@@ -58,7 +58,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ['id','user', 'yos', 'nida', 'phone_number', 'department', 'program', 'image']
+        fields = ['id','user', 'yos', 'nida', 'phone_number', 'department', 'image']
 
 
 class AcademicYearSerializer(serializers.ModelSerializer):
