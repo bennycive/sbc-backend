@@ -27,10 +27,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://sbc-4at2.onrender.com',
-    'http://sbc-4at2.onrender.com',  # optional, in case Render uses HTTP internally sometimes
-]
+# CSRF_TRUSTED_ORIGINS = [
+#     'https://sbc-4at2.onrender.com',
+#     'http://sbc-4at2.onrender.com',  # optional, in case Render uses HTTP internally sometimes
+# ]
 # Application definition
 
 INSTALLED_APPS = [
@@ -59,7 +59,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
 ]
 
@@ -72,14 +72,38 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 # DRF and JWT settings
+# REST_FRAMEWORK = {
+#     'DEFAULT_AUTHENTICATION_CLASSES': (
+#         'rest_framework_simplejwt.authentication.JWTAuthentication',
+#     ),
+#     # 'DEFAULT_PERMISSION_CLASSES': (
+#     #     'rest_framework.permissions.IsAuthenticated',
+#     # )
+# }
+
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
-    # 'DEFAULT_PERMISSION_CLASSES': (
-    #     'rest_framework.permissions.IsAuthenticated',
-    # )
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    )
 }
+
+# JWT settings
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': False,
+    'ALGORITHM': 'HS256',
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+
 
 AUTH_USER_MODEL = 'users_api.CustomUser'
 
@@ -97,7 +121,9 @@ TEMPLATES = [
             ],
         },
     },
+    
 ]
+
 
 
 WSGI_APPLICATION = 'sbc_backend.wsgi.application'
@@ -127,16 +153,15 @@ DATABASES = {
         'HOST': 'localhost',  
         'PORT': '5432',       
     }
-    
-    
+     
 }
-
 
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
+    
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
@@ -149,8 +174,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
+     
 ]
 
+
+X_FRAME_OPTIONS = 'ALLOWALL'
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

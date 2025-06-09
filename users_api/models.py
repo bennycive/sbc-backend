@@ -58,6 +58,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     is_active = models.BooleanField(default=True)
+    phone_number = models.CharField(max_length=30, default=0)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
@@ -185,6 +186,7 @@ class ProvisionalResultRequest(models.Model):
     SEMESTER_RANGE_CHOICES = [
         ('one', 'Semester I'),
         ('two', 'Semester II'),
+        ('all', 'First Year to Second Year'),  
         
     ]
 
@@ -204,3 +206,23 @@ class ProvisionalResultRequest(models.Model):
     def __str__(self):
         return f"Provisional Request by {self.user}"
 
+
+
+class StudentCertificate(models.Model):
+    CERTIFICATE_TYPES = [
+        ('birth_certificate', 'Birth Certificate'),
+        ('form_4_certificate', 'Form 4 Certificate'),
+        ('form_6_certificate', 'Form 6 Certificate'),
+        ('diploma_certificate', 'Diploma Certificate'),
+        ('voter_id', 'Voter ID'),
+        ('nin_id', 'NIN ID'),
+    ]
+
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='certificates')
+    certificate_type = models.CharField(max_length=50, choices=CERTIFICATE_TYPES)
+    certificate_name = models.CharField(max_length=255)  # e.g., actual document name or description
+    certificate_file = models.FileField(upload_to='student_certificates/%Y/%m/%d/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.student} - {self.get_certificate_type_display()} - {self.certificate_name}"
