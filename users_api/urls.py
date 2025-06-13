@@ -24,6 +24,7 @@ from .views import FingerprintViewSet
 
 router.register(r'fingerprints', FingerprintViewSet, basename='fingerprint')
 
+
 urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/admin/summary/', views.AdminSummaryView.as_view(), name='admin-summary'),
@@ -37,9 +38,9 @@ urlpatterns = [
 ]
 
 
-urlpatterns = [
-    path('', include(router.urls)),
-    path('dashboard/admin/summary/', views.AdminSummaryView.as_view(), name='admin-summary'),
-    path('mfa/register/options/', MfaRegisterOptionsView.as_view(), name='mfa-register-options'),
-    path('mfa/register/complete/', MfaRegisterCompleteView.as_view(), name='mfa-register-complete'),
-]
+# urlpatterns = [
+#     path('', include(router.urls)),
+#     path('dashboard/admin/summary/', views.AdminSummaryView.as_view(), name='admin-summary'),
+#     path('mfa/register/options/', MfaRegisterOptionsView.as_view(), name='mfa-register-options'),
+#     path('mfa/register/complete/', MfaRegisterCompleteView.as_view(), name='mfa-register-complete'),
+# ]
