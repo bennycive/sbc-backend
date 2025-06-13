@@ -90,6 +90,9 @@ class Profile(models.Model):
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     image = models.ImageField(upload_to='profiles/', null=True, blank=True)
 
+    webauthn_credential_id = models.TextField(null=True, blank=True)
+    webauthn_public_key = models.TextField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.user.username}"
     
@@ -226,3 +229,9 @@ class StudentCertificate(models.Model):
 
     def __str__(self):
         return f"{self.student} - {self.get_certificate_type_display()} - {self.certificate_name}"
+
+
+class Fingerprint(models.Model):
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    fingerprint_data = models.TextField()
+    uploaded_at = models.DateTimeField(auto_now_add=True)

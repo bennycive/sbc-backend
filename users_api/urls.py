@@ -18,8 +18,28 @@ router.register(r'provisional-requests', ProvisionalResultRequestViewSet, basena
 router.register(r'certificates', StudentCertificateViewSet, basename='studentcertificate')
 
 
+from .views_mfa import MfaRegisterOptionsView, MfaRegisterCompleteView, MfaAuthenticateOptionsView, MfaAuthenticateCompleteView
+
+from .views import FingerprintViewSet
+
+router.register(r'fingerprints', FingerprintViewSet, basename='fingerprint')
+
 urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/admin/summary/', views.AdminSummaryView.as_view(), name='admin-summary'),
+
+    path('mfa/register/options/', MfaRegisterOptionsView.as_view(), name='mfa-register-options'),
+    path('mfa/register/complete/', MfaRegisterCompleteView.as_view(), name='mfa-register-complete'),
+    path('mfa/authenticate/options/', MfaAuthenticateOptionsView.as_view(), name='mfa-authenticate-options'),
+    path('mfa/authenticate/complete/', MfaAuthenticateCompleteView.as_view(), name='mfa-authenticate-complete'),
+    
+    
 ]
 
+
+urlpatterns = [
+    path('', include(router.urls)),
+    path('dashboard/admin/summary/', views.AdminSummaryView.as_view(), name='admin-summary'),
+    path('mfa/register/options/', MfaRegisterOptionsView.as_view(), name='mfa-register-options'),
+    path('mfa/register/complete/', MfaRegisterCompleteView.as_view(), name='mfa-register-complete'),
+]
