@@ -54,10 +54,23 @@ class CustomUserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+from colleges_api.models import Department
+
 class ProfileSerializer(serializers.ModelSerializer):
+    yos = serializers.IntegerField(required=False, allow_null=True)
+    nida = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all(), required=False, allow_null=True)
+
     class Meta:
         model = Profile
-        fields = ['id', 'user', 'yos', 'nida', 'phone_number', 'department', 'program', 'image']
+        fields = ['id', 'user', 'yos', 'nida', 'phone_number', 'department', 'image']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # queryset is set directly on department field, no dynamic setting needed
+
+    # No get_fields override needed
 
 class AcademicYearSerializer(serializers.ModelSerializer):
     class Meta:
@@ -123,8 +136,19 @@ class StudentCertificateSerializer(serializers.ModelSerializer):
             return obj.certificate_file.url
         return None
 
+# class FingerprintSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Fingerprint
+#         fields = ['id', 'student', 'fingerprint_data', 'uploaded_at']
+#         read_only_fields = ['id', 'uploaded_at']
+
+
 class FingerprintSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fingerprint
         fields = ['id', 'student', 'fingerprint_data', 'uploaded_at']
         read_only_fields = ['id', 'uploaded_at']
+
+    def create(self, validated_data):
+        print("Received validated data:", validated_data)
+        return super().create(validated_data)

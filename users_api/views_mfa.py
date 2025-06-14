@@ -76,6 +76,9 @@ class MfaRegisterCompleteView(APIView):
         expected_challenge = base64url_to_bytes(challenge_b64)
         registration_response = request.data
 
+        # Print the received data for debugging
+        print("Received registration response data:", registration_response)
+
         try:
             client_data_json = base64url_to_bytes(registration_response.get('clientDataJSON'))
             attestation_object = base64url_to_bytes(registration_response.get('attestationObject'))

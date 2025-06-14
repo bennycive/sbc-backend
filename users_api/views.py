@@ -42,6 +42,58 @@ class ProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     # permission_classes = [IsAuthenticated]
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        data = self.request.data
+
+        # Validate required fields based on role
+        errors = {}
+
+        if role == 'student':
+            if not data.get('yos'):
+                errors['yos'] = ['Year of Study is required for students.']
+        if role != 'admin':
+            if not data.get('department'):
+                errors['department'] = ['Department is required for non-admin users.']
+
+        if not data.get('nida'):
+            errors['nida'] = ['NIDA is required.']
+        if not data.get('phone_number'):
+            errors['phone_number'] = ['Phone number is required.']
+
+        if errors:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(errors)
+
+        serializer.save(user=user)
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        data = self.request.data
+
+        # Validate required fields based on role
+        errors = {}
+
+        if role == 'student':
+            if not data.get('yos'):
+                errors['yos'] = ['Year of Study is required for students.']
+        if role != 'admin':
+            if not data.get('department'):
+                errors['department'] = ['Department is required for non-admin users.']
+
+        if not data.get('nida'):
+            errors['nida'] = ['NIDA is required.']
+        if not data.get('phone_number'):
+            errors['phone_number'] = ['Phone number is required.']
+
+        if errors:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(errors)
+
+        serializer.save()
+
 
 class AcademicYearViewSet(viewsets.ModelViewSet):
     queryset = AcademicYear.objects.all()
@@ -177,6 +229,10 @@ class FingerprintViewSet(viewsets.ModelViewSet):
     serializer_class = FingerprintSerializer
     permission_classes = [AllowAny]
     # permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        print("Received fingerprint data:", request.data)
+        return super().create(request, *args, **kwargs)
 
 class TranscriptCertificateRequestViewSet(viewsets.ModelViewSet):
     queryset = TranscriptCertificateRequest.objects.all().order_by('-submitted_at')

@@ -21,13 +21,18 @@ router.register(r'certificates', StudentCertificateViewSet, basename='studentcer
 from .views_mfa import MfaRegisterOptionsView, MfaRegisterCompleteView, MfaAuthenticateOptionsView, MfaAuthenticateCompleteView
 
 from .views import FingerprintViewSet
+from .views_summary import AdminSummaryView, HODSummaryView, BursarSummaryView, StudentSummaryView, ExamOfficerSummaryView
 
 router.register(r'fingerprints', FingerprintViewSet, basename='fingerprint')
 
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('dashboard/admin/summary/', views.AdminSummaryView.as_view(), name='admin-summary'),
+    path('dashboard/admin/summary/', AdminSummaryView.as_view(), name='admin-summary'),
+    path('dashboard/hod/summary/', HODSummaryView.as_view(), name='hod-summary'),
+    path('dashboard/bursar/summary/', BursarSummaryView.as_view(), name='bursar-summary'),
+    path('dashboard/student/summary/', StudentSummaryView.as_view(), name='student-summary'),
+    path('dashboard/examofficer/summary/', ExamOfficerSummaryView.as_view(), name='examofficer-summary'),
 
     path('mfa/register/options/', MfaRegisterOptionsView.as_view(), name='mfa-register-options'),
     path('mfa/register/complete/', MfaRegisterCompleteView.as_view(), name='mfa-register-complete'),
@@ -36,6 +41,7 @@ urlpatterns = [
     
     
 ]
+
 
 
 # urlpatterns = [
