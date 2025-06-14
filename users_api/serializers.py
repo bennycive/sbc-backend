@@ -187,12 +187,62 @@ class StudentCertificateSerializer(serializers.ModelSerializer):
             return obj.certificate_file.url
         return None
 
-# class FingerprintSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Fingerprint
-#         fields = ['id', 'student', 'fingerprint_data', 'uploaded_at']
-#         read_only_fields = ['id', 'uploaded_at']
+# class StudentCertificateSerializer(serializers.ModelSerializer):
+#     """
+#     Serializes StudentCertificate objects.
+#     - Allows an admin to assign a certificate to a student via their ID.
+#     - Generates a full, absolute URL for the certificate file.
+#     """
+#     # This field accepts a student's ID during POST/PUT requests from an admin.
+#     # It validates that the ID belongs to a user with the 'student' role.
+#     student = serializers.PrimaryKeyRelatedField(
+#         queryset=CustomUser.objects.filter(role='student')
+#     )
 
+#     # This read-only field will contain the full URL for the frontend.
+#     file_url = serializers.SerializerMethodField()
+
+#     # This field is for the actual file upload and is not included in the response.
+#     certificate_file = serializers.FileField(write_only=True, required=True)
+
+#     class Meta:
+#         model = StudentCertificate
+#         fields = [
+#             'id',
+#             'student',
+#             'certificate_type',
+#             'certificate_name',
+#             'certificate_file', # For upload (write-only)
+#             'file_url',         # For response (read-only)
+#             'uploaded_at',
+#         ]
+#         read_only_fields = ['id', 'uploaded_at', 'file_url']
+
+#     def get_file_url(self, obj):
+#         """
+#         This method builds the absolute URL for the certificate file.
+#         It relies on the 'request' being passed into the serializer's context.
+#         """
+#         request = self.context.get('request')
+#         # Check if the file exists and a request object is available
+#         if obj.certificate_file and request:
+#             return request.build_absolute_uri(obj.certificate_file.url)
+#         return None
+
+#     def to_representation(self, instance):
+#         """
+#         Customizes the JSON output for GET requests to show full student details,
+#         which is more useful for the UI than just an ID.
+#         """
+#         representation = super().to_representation(instance)
+#         student_instance = instance.student
+#         representation['student'] = {
+#             'id': student_instance.id,
+#             'username': student_instance.username,
+#             'first_name': student_instance.first_name,
+#             'last_name': student_instance.last_name,
+#         }
+#         return representation
 
 class FingerprintSerializer(serializers.ModelSerializer):
     class Meta:
