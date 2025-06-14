@@ -172,7 +172,7 @@ class TranscriptCertificateRequest(models.Model):
         ('transcript', 'Transcript Only'),
     ]
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=False, default=0)
     request_type = models.CharField(max_length=20, choices=REQUEST_TYPE_CHOICES)
     number_of_copies = models.PositiveIntegerField()
     submitted_at = models.DateTimeField(auto_now_add=True)
@@ -194,7 +194,7 @@ class ProvisionalResultRequest(models.Model):
         
     ]
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=False, default=0)
     current_address = models.CharField(max_length=255)
     email_or_phone = models.CharField(max_length=100)
     year_of_admission = models.CharField(max_length=20)

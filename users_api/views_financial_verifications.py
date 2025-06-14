@@ -6,18 +6,18 @@ from django.shortcuts import get_object_or_404
 from .models import TranscriptCertificateRequest, ProvisionalResultRequest, PaymentRecord, OtherPaymentRecord
 from .serializers import TranscriptCertificateRequestSerializer, ProvisionalResultRequestSerializer, PaymentRecordSerializer, OtherPaymentRecordSerializer
 
-class IsBursarOrAdmin(BasePermission):
+class IsBursarOrHodOrAdmin(BasePermission):
     def has_permission(self, request, view):
         user = request.user
-        return user and user.is_authenticated and (user.role == 'bursar' or user.is_staff or user.is_superuser)
+        return user and user.is_authenticated and (user.role in ['bursar', 'hod'] or user.is_staff or user.is_superuser)
 
 class FinancialVerificationsView(APIView):
-    permission_classes = [IsBursarOrAdmin]
+    permission_classes = [IsBursarOrHodOrAdmin]
 
     def get(self, request):
         # Return all requests from TranscriptCertificateRequest and ProvisionalResultRequest
-        transcript_requests = TranscriptCertificateRequest.objects.all().order_by('-submitted_at')
-        provisional_requests = ProvisionalResultRequest.objects.all().order_by('-submitted_at')
+        transcript_requests = TranscriptCertificateRequest.objects.filter(user__isnull=False).order_by('-submitted_at')
+        provisional_requests = ProvisionalResultRequest.objects.filter(user__isnull=False).order_by('-submitted_at')
 
         transcript_serializer = TranscriptCertificateRequestSerializer(transcript_requests, many=True)
         provisional_serializer = ProvisionalResultRequestSerializer(provisional_requests, many=True)
@@ -29,7 +29,7 @@ class FinancialVerificationsView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 class UpdateBursarVerificationView(APIView):
-    permission_classes = [IsBursarOrAdmin]
+    permission_classes = [IsBursarOrHodOrAdmin]
 
     def post(self, request, request_type, pk):
         # request_type: 'transcript' or 'provisional'

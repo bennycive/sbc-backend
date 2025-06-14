@@ -26,6 +26,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAdminUser
 from colleges_api.models import Department, Course
 from django.db import models
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from .serializers import StudentCertificateSerializer
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -128,63 +131,70 @@ class OtherPaymentRecordViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     # permission_classes = [IsAuthenticated]
 
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
 
 class TranscriptCertificateRequestViewSet(viewsets.ModelViewSet):
-    queryset = TranscriptCertificateRequest.objects.all().order_by('-submitted_at')
+    """
+    This ViewSet handles transcript and certificate requests.
+    - Students can create and view their own requests.
+    - Staff (bursar, HOD, etc.) can view all requests to verify them.
+    """
     serializer_class = TranscriptCertificateRequestSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        if not user.profile.fingerprint_verified:
-            raise PermissionDenied("Fingerprint verification required before requesting certificates or transcripts.")
-        serializer.save(user=user)
-
     def get_queryset(self):
+        """
+        Dynamically filters the queryset based on the user's role.
+        """
         user = self.request.user
-        if user.is_authenticated and user.role == 'student':
+
+        # If the user is a student, show only their own requests.
+        if hasattr(user, 'role') and user.role == 'student':
             return TranscriptCertificateRequest.objects.filter(user=user).order_by('-submitted_at')
+        
+        # If the user is a staff member (or superuser), show all requests.
+        # You can add more specific role checks here if needed (e.g., 'bursar', 'hod').
+        elif hasattr(user, 'role') and user.role in ['bursar', 'hod', 'exam-officer', 'admin']:
+             return TranscriptCertificateRequest.objects.all().order_by('-submitted_at')
+
+        # For any other case, return an empty queryset to be safe.
         return TranscriptCertificateRequest.objects.none()
 
+    def perform_create(self, serializer):
+        """
+        Automatically associates the request with the logged-in user upon creation.
+        """
+        serializer.save(user=self.request.user)
 class ProvisionalResultRequestViewSet(viewsets.ModelViewSet):
-    queryset = ProvisionalResultRequest.objects.all().order_by('-submitted_at')
+    """
+    This ViewSet handles provisional result requests.
+    - Students can create and view their own requests.
+    - Staff (bursar, HOD, etc.) can view all requests to verify them.
+    """
     serializer_class = ProvisionalResultRequestSerializer
-    permission_classes = [AllowAny] # Currently allowing any access
-    # permission_classes = [permissions.IsAuthenticated] # Commented out
-
-
-from .serializers import StudentCertificateSerializer
-
-class StudentCertificateViewSet(viewsets.ModelViewSet):
-    queryset = StudentCertificate.objects.all()
-    serializer_class = StudentCertificateSerializer
-    permission_classes = [AllowAny]
-    # permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Only return certificates of the logged-in student
+        """
+        Dynamically filters the queryset based on the user's role.
+        """
         user = self.request.user
-        if user.is_authenticated and user.role == 'student':
-            return StudentCertificate.objects.filter(student=user)
-        else:
-            return StudentCertificate.objects.none()
+
+        # If the user is a student, show only their own requests.
+        if hasattr(user, 'role') and user.role == 'student':
+            return ProvisionalResultRequest.objects.filter(user=user).order_by('-submitted_at')
+        
+        # If the user is a staff member or admin, show all requests.
+        elif hasattr(user, 'role') and user.role in ['bursar', 'hod', 'exam-officer', 'admin']:
+             return ProvisionalResultRequest.objects.all().order_by('-submitted_at')
+
+        # For any other case, return an empty queryset.
+        return ProvisionalResultRequest.objects.none()
 
     def perform_create(self, serializer):
-        student = serializer.validated_data.get('student')
-        if not student:
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError("Student field is required.")
-        if student.role != 'student':
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError("The selected user is not a student.")
-        # Get the certificate_file from the request
-        certificate_file = self.request.FILES.get('certificate_file')
-
-        # Save the certificate with the file
-
-
+        """
+        Automatically associates the request with the logged-in user upon creation.
+        """
+        serializer.save(user=self.request.user)
 class AdminSummaryView(APIView):
     permission_classes = [IsAdminUser]
 
@@ -247,46 +257,83 @@ class FingerprintViewSet(viewsets.ModelViewSet):
         print("Received fingerprint data:", request.data)
         return super().create(request, *args, **kwargs)
 
-class TranscriptCertificateRequestViewSet(viewsets.ModelViewSet):
-    queryset = TranscriptCertificateRequest.objects.all().order_by('-submitted_at')
-    serializer_class = TranscriptCertificateRequestSerializer
-    permission_classes = [AllowAny] # Currently allowing any access
-    # permission_classes = [permissions.IsAuthenticated] # Commented out
-
-class ProvisionalResultRequestViewSet(viewsets.ModelViewSet):
-    queryset = ProvisionalResultRequest.objects.all().order_by('-submitted_at')
-    serializer_class = ProvisionalResultRequestSerializer
-    permission_classes = [AllowAny] # Currently allowing any access
-    # permission_classes = [permissions.IsAuthenticated] # Commented out
 
 
 from .serializers import StudentCertificateSerializer
 
-class StudentCertificateViewSet(viewsets.ModelViewSet):
-    queryset = StudentCertificate.objects.all()
-    serializer_class = StudentCertificateSerializer
-    permission_classes = [AllowAny]
-    # permission_classes = [permissions.IsAuthenticated]
+# class StudentCertificateViewSet(viewsets.ModelViewSet):
+#     queryset = StudentCertificate.objects.all()
+#     serializer_class = StudentCertificateSerializer
+#     permission_classes = [AllowAny]
+#     # permission_classes = [permissions.IsAuthenticated]
 
-    # def get_queryset(self):
-    #     # Only return certificates of the logged-in student
-    #     user = self.request.user
-    #     return self.queryset.filter(student=user)
+#     # def get_queryset(self):
+#     #     # Only return certificates of the logged-in student
+#     #     user = self.request.user
+#     #     return self.queryset.filter(student=user)
+
+#     def perform_create(self, serializer):
+#         student = serializer.validated_data.get('student')
+#         if not student:
+#             from rest_framework.exceptions import ValidationError
+#             raise ValidationError("Student field is required.")
+#         if student.role != 'student':
+#             from rest_framework.exceptions import ValidationError
+#             raise ValidationError("The selected user is not a student.")
+#         certificate_file = self.request.FILES.get('certificate_file')
+#         if certificate_file:
+#             serializer.save(certificate_file=certificate_file)
+#         else:
+#             serializer.save()
+class StudentCertificateViewSet(viewsets.ModelViewSet):
+    """
+    Handles the management and viewing of student certificates.
+    - An Admin can create, view, update, and delete certificates for any student.
+    - A Student can only view their own certificates.
+    """
+    serializer_class = StudentCertificateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        This method filters what certificates a user can see based on their role.
+        """
+        user = self.request.user
+
+        # If the user is a student, they see only their own certificates.
+        if hasattr(user, 'role') and user.role == 'student':
+            return StudentCertificate.objects.filter(student=user).order_by('-uploaded_at')
+
+        # If the user is an admin, they see all certificates.
+        elif hasattr(user, 'role') and user.role == 'admin':
+            return StudentCertificate.objects.all().order_by('-uploaded_at')
+
+        # Other authenticated roles (like bursar, HOD) will see nothing.
+        return StudentCertificate.objects.none()
 
     def perform_create(self, serializer):
-        student = serializer.validated_data.get('student')
-        if not student:
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError("Student field is required.")
-        if student.role != 'student':
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError("The selected user is not a student.")
-        certificate_file = self.request.FILES.get('certificate_file')
-        if certificate_file:
-            serializer.save(certificate_file=certificate_file)
-        else:
-            serializer.save()
+        """
+        Allows an admin to upload a certificate for a student specified in the request.
+        """
+        if not self.request.user.role == 'admin':
+             raise PermissionDenied("You do not have permission to upload certificates.")
+        serializer.save()
 
+    def perform_update(self, serializer):
+        """
+        Allows an admin to update a certificate.
+        """
+        if not self.request.user.role == 'admin':
+             raise PermissionDenied("You do not have permission to edit certificates.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        Allows an admin to delete a certificate.
+        """
+        if not self.request.user.role == 'admin':
+             raise PermissionDenied("You do not have permission to delete certificates.")
+        instance.delete()
 
 class AdminSummaryView(APIView):
     permission_classes = [IsAdminUser]
