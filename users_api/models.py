@@ -88,6 +88,7 @@ class Profile(models.Model):
     nida = models.CharField(max_length=255, unique=True)
     phone_number = models.CharField(max_length=30)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    program = models.ForeignKey('colleges_api.Course', on_delete=models.SET_NULL, null=True, blank=True)
     image = models.ImageField(upload_to='profiles/', null=True, blank=True)
 
     webauthn_credential_id = models.TextField(null=True, blank=True)

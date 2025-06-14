@@ -36,6 +36,9 @@ class CustomUserViewSet(viewsets.ModelViewSet):
     serializer_class = CustomUserSerializer
     permission_classes = [AllowAny]
 
+from django.db import IntegrityError
+from rest_framework.exceptions import ValidationError
+
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
@@ -63,10 +66,15 @@ class ProfileViewSet(viewsets.ModelViewSet):
             errors['phone_number'] = ['Phone number is required.']
 
         if errors:
-            from rest_framework.exceptions import ValidationError
             raise ValidationError(errors)
 
-        serializer.save(user=user)
+        try:
+            serializer.save(user=user)
+        except IntegrityError as e:
+            if 'unique constraint' in str(e).lower() or 'unique violation' in str(e).lower():
+                raise ValidationError({'nida': ['This NIDA value already exists.']})
+            else:
+                raise e
 
     def perform_update(self, serializer):
         user = self.request.user
@@ -89,10 +97,15 @@ class ProfileViewSet(viewsets.ModelViewSet):
             errors['phone_number'] = ['Phone number is required.']
 
         if errors:
-            from rest_framework.exceptions import ValidationError
             raise ValidationError(errors)
 
-        serializer.save()
+        try:
+            serializer.save()
+        except IntegrityError as e:
+            if 'unique constraint' in str(e).lower() or 'unique violation' in str(e).lower():
+                raise ValidationError({'nida': ['This NIDA value already exists.']})
+            else:
+                raise e
 
 
 class AcademicYearViewSet(viewsets.ModelViewSet):

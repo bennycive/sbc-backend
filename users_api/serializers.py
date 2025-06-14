@@ -54,21 +54,22 @@ class CustomUserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-from colleges_api.models import Department
+from colleges_api.models import Department, Course
 
 class ProfileSerializer(serializers.ModelSerializer):
     yos = serializers.IntegerField(required=False, allow_null=True)
     nida = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all(), required=False, allow_null=True)
+    program = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = Profile
-        fields = ['id', 'user', 'yos', 'nida', 'phone_number', 'department', 'image']
+        fields = ['id', 'user', 'yos', 'nida', 'phone_number', 'department', 'program', 'image']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # queryset is set directly on department field, no dynamic setting needed
+        # queryset is set directly on department and program fields, no dynamic setting needed
 
     # No get_fields override needed
 
