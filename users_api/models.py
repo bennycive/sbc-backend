@@ -225,7 +225,7 @@ class StudentCertificate(models.Model):
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='certificates')
     certificate_type = models.CharField(max_length=50, choices=CERTIFICATE_TYPES)
     certificate_name = models.CharField(max_length=255)  # e.g., actual document name or description
-    certificate_file = models.FileField(upload_to='student_certificates/%Y/%m/%d/')
+    certificate_file = models.FileField(upload_to='student_certificates')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

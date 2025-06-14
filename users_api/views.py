@@ -281,7 +281,11 @@ class StudentCertificateViewSet(viewsets.ModelViewSet):
         if student.role != 'student':
             from rest_framework.exceptions import ValidationError
             raise ValidationError("The selected user is not a student.")
-        serializer.save()
+        certificate_file = self.request.FILES.get('certificate_file')
+        if certificate_file:
+            serializer.save(certificate_file=certificate_file)
+        else:
+            serializer.save()
 
 
 class AdminSummaryView(APIView):
