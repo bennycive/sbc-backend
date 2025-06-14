@@ -333,3 +333,27 @@ class AdminSummaryView(APIView):
             "total_rejected": total_rejected,
         }
         return Response(data, status=status.HTTP_200_OK)
+
+
+
+class StudentFinancialsView(APIView):
+    """
+    View to get financial records for a specific student.
+    """
+    def get(self, request, user_id, format=None):
+        try:
+            student = CustomUser.objects.get(id=user_id, role='student')
+        except CustomUser.DoesNotExist:
+            return Response({"error": "Student not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        payment_records = PaymentRecord.objects.filter(student=student)
+        other_payment_records = OtherPaymentRecord.objects.filter(student=student)
+
+        payment_serializer = PaymentRecordSerializer(payment_records, many=True)
+        other_payment_serializer = OtherPaymentRecordSerializer(other_payment_records, many=True)
+
+        return Response({
+            "payment_records": payment_serializer.data,
+            "other_payment_records": other_payment_serializer.data
+        })
+

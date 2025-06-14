@@ -87,18 +87,68 @@ class OtherPaymentRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = OtherPaymentRecord
         fields = '__all__'
+        
+# PAYMENT SERIALIZER FOR THE BURSAR 
+class PaymentRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentRecord
+        fields = '__all__'
+
+class OtherPaymentRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OtherPaymentRecord
+        fields = '__all__'
+        
+        
+
 
 class TranscriptCertificateRequestSerializer(serializers.ModelSerializer):
     user = CustomUserSerializer(read_only=True)
     program = serializers.CharField(source='user.department', read_only=True, allow_null=True)
+    payment_records = serializers.SerializerMethodField()
+    other_payment_records = serializers.SerializerMethodField()
 
     class Meta:
         model = TranscriptCertificateRequest
         fields = [
             'id', 'user', 'request_type', 'number_of_copies', 'submitted_at',
             'bursar_verified', 'hod_verified', 'exam_officer_approved',
-            'program'
+            'program', 'payment_records', 'other_payment_records'
         ]
+
+    def get_payment_records(self, obj):
+        if obj.user is None:
+            return []
+        payments = obj.user.paymentrecord_set.all()
+        return PaymentRecordSerializer(payments, many=True).data
+
+    def get_other_payment_records(self, obj):
+        if obj.user is None:
+            return []
+        other_payments = obj.user.otherpaymentrecord_set.all()
+        return OtherPaymentRecordSerializer(other_payments, many=True).data
+
+class ProvisionalResultRequestSerializer(serializers.ModelSerializer):
+    user = CustomUserSerializer(read_only=True)
+    payment_records = serializers.SerializerMethodField()
+    other_payment_records = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProvisionalResultRequest
+        fields = [
+            'id', 'user', 'current_address', 'email_or_phone', 'year_of_admission',
+            'year_of_study', 'programme', 'semester_range', 'submitted_at',
+            'bursar_verified', 'hod_verified', 'exam_officer_approved',
+            'payment_records', 'other_payment_records'
+        ]
+
+    def get_payment_records(self, obj):
+        payments = obj.user.paymentrecord_set.all()
+        return PaymentRecordSerializer(payments, many=True).data
+
+    def get_other_payment_records(self, obj):
+        other_payments = obj.user.otherpaymentrecord_set.all()
+        return OtherPaymentRecordSerializer(other_payments, many=True).data
 
 class ProvisionalResultRequestSerializer(serializers.ModelSerializer):
     user = CustomUserSerializer(read_only=True)

@@ -4,6 +4,8 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from .views import CustomUserViewSet, ProfileViewSet, AcademicYearViewSet, PaymentRecordViewSet, OtherPaymentRecordViewSet,TranscriptCertificateRequestViewSet, ProvisionalResultRequestViewSet
 from .views import StudentCertificateViewSet
+from .views_financial_verifications import FinancialVerificationsView, UpdateBursarVerificationView
+from .views import StudentFinancialsView
 
 router = DefaultRouter()
 router.register(r'users', CustomUserViewSet)
@@ -27,6 +29,7 @@ router.register(r'fingerprints', FingerprintViewSet, basename='fingerprint')
 
 
 urlpatterns = [
+    
     path('', include(router.urls)),
     path('dashboard/admin/summary/', AdminSummaryView.as_view(), name='admin-summary'),
     path('dashboard/hod/summary/', HODSummaryView.as_view(), name='hod-summary'),
@@ -38,15 +41,13 @@ urlpatterns = [
     path('mfa/register/complete/', MfaRegisterCompleteView.as_view(), name='mfa-register-complete'),
     path('mfa/authenticate/options/', MfaAuthenticateOptionsView.as_view(), name='mfa-authenticate-options'),
     path('mfa/authenticate/complete/', MfaAuthenticateCompleteView.as_view(), name='mfa-authenticate-complete'),
+
+    path('financial-verifications/', FinancialVerificationsView.as_view(), name='financial-verifications'),
+    path('financial-verifications/<str:request_type>/<int:pk>/update-bursar/', UpdateBursarVerificationView.as_view(), name='update-bursar-verification'),
+    
+    path('student-financials/<int:user_id>/', StudentFinancialsView.as_view(), name='student-financials'),
     
     
 ]
 
 
-
-# urlpatterns = [
-#     path('', include(router.urls)),
-#     path('dashboard/admin/summary/', views.AdminSummaryView.as_view(), name='admin-summary'),
-#     path('mfa/register/options/', MfaRegisterOptionsView.as_view(), name='mfa-register-options'),
-#     path('mfa/register/complete/', MfaRegisterCompleteView.as_view(), name='mfa-register-complete'),
-# ]
