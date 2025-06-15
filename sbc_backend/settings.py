@@ -68,22 +68,30 @@ ROOT_URLCONF = 'sbc_backend.urls'
 
 # Allow frontend domain
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",  
+    "http://localhost:4200",  # Example for Angular dev server
+    "http://127.0.0.1:4200",
 ]
-
 CORS_ALLOW_CREDENTIALS = True
 
 
-# DRF and JWT settings
-# REST_FRAMEWORK = {
-#     'DEFAULT_AUTHENTICATION_CLASSES': (
-#         'rest_framework_simplejwt.authentication.JWTAuthentication',
-#     ),
-#     # 'DEFAULT_PERMISSION_CLASSES': (
-#     #     'rest_framework.permissions.IsAuthenticated',
-#     # )
-# }
+# By default, Django's session cookie is not sent cross-domain.
+# We need to set SameSite to 'None' (but it requires Secure).
+# For development (HTTP), we can temporarily use 'Lax'.
+# For production (HTTPS), you MUST use 'None'.
 
+# For Production (HTTPS):
+# SESSION_COOKIE_SAMESITE = 'None'
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SAMESITE = 'None'
+# CSRF_COOKIE_SECURE = True
+
+# For Development (HTTP):
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+
+
+# DRF and JWT settings
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
