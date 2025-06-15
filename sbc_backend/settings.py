@@ -71,6 +71,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",  
 ]
 
+CORS_ALLOW_CREDENTIALS = True
+
+
 # DRF and JWT settings
 # REST_FRAMEWORK = {
 #     'DEFAULT_AUTHENTICATION_CLASSES': (

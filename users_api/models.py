@@ -4,7 +4,8 @@ from colleges_api.models import Department
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.conf import settings
-
+from django.db import models
+from django.contrib.auth import get_user_model
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, username, email, password=None, **extra_fields):
@@ -91,8 +92,6 @@ class Profile(models.Model):
     program = models.ForeignKey('colleges_api.Course', on_delete=models.SET_NULL, null=True, blank=True)
     image = models.ImageField(upload_to='profiles/', null=True, blank=True)
 
-    webauthn_credential_id = models.TextField(null=True, blank=True)
-    webauthn_public_key = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username}"
@@ -232,7 +231,20 @@ class StudentCertificate(models.Model):
         return f"{self.student} - {self.get_certificate_type_display()} - {self.certificate_name}"
 
 
+
 class Fingerprint(models.Model):
-    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     fingerprint_data = models.TextField()
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    # WebAuthn fields
+    webauthn_credential_id = models.TextField(null=True, blank=True)  # Base64url encoded
+    webauthn_public_key = models.TextField(null=True, blank=True)     # COSE key or JWK format
+    webauthn_sign_count = models.PositiveIntegerField(null=True, blank=True)
+    webauthn_attestation_format = models.CharField(max_length=100, null=True, blank=True)
+    webauthn_aaguid = models.CharField(max_length=128, null=True, blank=True)
+
+    def __str__(self):
+        return f"Fingerprint of {self.student} uploaded on {self.uploaded_at}"
+
+

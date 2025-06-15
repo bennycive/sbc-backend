@@ -261,30 +261,7 @@ class FingerprintViewSet(viewsets.ModelViewSet):
 
 from .serializers import StudentCertificateSerializer
 
-# class StudentCertificateViewSet(viewsets.ModelViewSet):
-#     queryset = StudentCertificate.objects.all()
-#     serializer_class = StudentCertificateSerializer
-#     permission_classes = [AllowAny]
-#     # permission_classes = [permissions.IsAuthenticated]
 
-#     def get_queryset(self):
-#         # Only return certificates of the logged-in student
-#         user = self.request.user
-#         return self.queryset.filter(student=user)
-
-#     def perform_create(self, serializer):
-#         student = serializer.validated_data.get('student')
-#         if not student:
-#             from rest_framework.exceptions import ValidationError
-#             raise ValidationError("Student field is required.")
-#         if student.role != 'student':
-#             from rest_framework.exceptions import ValidationError
-#             raise ValidationError("The selected user is not a student.")
-#         certificate_file = self.request.FILES.get('certificate_file')
-#         if certificate_file:
-#             serializer.save(certificate_file=certificate_file)
-#         else:
-#             serializer.save()
 class StudentCertificateViewSet(viewsets.ModelViewSet):
     queryset = StudentCertificate.objects.all()
     serializer_class = StudentCertificateSerializer

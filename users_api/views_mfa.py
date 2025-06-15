@@ -13,16 +13,18 @@ import cbor2
 
 User = get_user_model()
 
-RP_ID = 'localhost'  # Adjust to your RP ID
-ORIGIN = 'http://localhost:4200'  # Adjust to your frontend origin
+RP_ID = 'localhost'  # Replace with your domain in production
+ORIGIN = 'http://localhost:4200'  # Adjust this to match your frontend origin
+
 
 def base64url_to_bytes(data):
     padding = '=' * (4 - (len(data) % 4)) if len(data) % 4 != 0 else ''
     return base64.urlsafe_b64decode(data + padding)
 
+
 def bytes_to_base64url(data):
-    # Change to standard base64 encoding with padding for frontend compatibility
     return base64.b64encode(data).decode('utf-8')
+
 
 class MfaRegisterOptionsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -52,8 +54,8 @@ class MfaRegisterOptionsView(APIView):
                 "displayName": display_name
             },
             "pubKeyCredParams": [
-                {"type": "public-key", "alg": -7},  # ES256
-                {"type": "public-key", "alg": -257} # RS256
+                {"type": "public-key", "alg": -7},   # ES256
+                {"type": "public-key", "alg": -257}  # RS256
             ],
             "authenticatorSelection": {
                 "userVerification": "preferred"
@@ -61,8 +63,9 @@ class MfaRegisterOptionsView(APIView):
             "timeout": 60000,
             "attestation": "none"
         }
-
+        
         return Response(registration_options)
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class MfaRegisterCompleteView(APIView):
@@ -75,9 +78,6 @@ class MfaRegisterCompleteView(APIView):
             return Response({'error': 'Challenge not found in session'}, status=status.HTTP_400_BAD_REQUEST)
         expected_challenge = base64url_to_bytes(challenge_b64)
         registration_response = request.data
-
-        # Print the received data for debugging
-        print("Received registration response data:", registration_response)
 
         try:
             client_data_json = base64url_to_bytes(registration_response.get('clientDataJSON'))
@@ -96,24 +96,20 @@ class MfaRegisterCompleteView(APIView):
             if not auth_data:
                 return Response({'error': 'No authData in attestation'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Parse authData according to WebAuthn spec
             rp_id_hash = auth_data[0:32]
             flags = auth_data[32]
             sign_count = int.from_bytes(auth_data[33:37], 'big')
 
-            # Check RP ID hash
             expected_rp_id_hash = hashlib.sha256(RP_ID.encode('utf-8')).digest()
             if rp_id_hash != expected_rp_id_hash:
                 return Response({'error': 'RP ID hash mismatch'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Extract credential data
             credential_data = auth_data[37:]
             aaguid = credential_data[0:16]
             cred_id_len = int.from_bytes(credential_data[16:18], 'big')
             cred_id = credential_data[18:18+cred_id_len]
             credential_public_key = credential_data[18+cred_id_len:]
 
-            # Save credential ID and public key in user profile
             user.profile.webauthn_credential_id = bytes_to_base64url(cred_id)
             user.profile.webauthn_public_key = bytes_to_base64url(credential_public_key)
             user.profile.save()
@@ -122,6 +118,8 @@ class MfaRegisterCompleteView(APIView):
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 class MfaAuthenticateOptionsView(APIView):
@@ -178,10 +176,11 @@ class MfaAuthenticateCompleteView(APIView):
             if client_data['origin'] != ORIGIN:
                 return Response({'error': 'Origin mismatch'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Verify authenticator data and signature here (omitted for brevity)
-            # This would involve cryptographic verification of the signature using the stored public key
+            # NOTE: Cryptographic signature verification is required here using user.profile.webauthn_public_key
+            # This is where you would verify `signature` against the `authenticatorData` + `clientDataHash`
+            # using the public key stored in the user profile.
 
-            # For now, assume verification is successful
+            # Assume verification is successful
             return Response({"status": "ok"})
 
         except Exception as e:
