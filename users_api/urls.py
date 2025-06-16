@@ -20,12 +20,12 @@ router.register(r'provisional-requests', ProvisionalResultRequestViewSet, basena
 router.register(r'certificates', StudentCertificateViewSet, basename='studentcertificate')
 
 
-from .views_mfa import MfaRegisterOptionsView, MfaRegisterCompleteView, MfaAuthenticateOptionsView, MfaAuthenticateCompleteView
+from .views_mfa import *
 
-from .views import FingerprintViewSet
+
 from .views_summary import AdminSummaryView, HODSummaryView, BursarSummaryView, StudentSummaryView, ExamOfficerSummaryView
 
-router.register(r'fingerprints', FingerprintViewSet, basename='fingerprint')
+#router.register(r'fingerprints', FingerprintViewSet, basename='fingerprint')
 
 
 urlpatterns = [
@@ -38,7 +38,7 @@ urlpatterns = [
     path('dashboard/examofficer/summary/', ExamOfficerSummaryView.as_view(), name='examofficer-summary'),
 
     path('mfa/register/options/', MfaRegisterOptionsView.as_view(), name='mfa-register-options'),
-    path('mfa/register/complete/', MfaRegisterCompleteView.as_view(), name='mfa-register-complete'),
+    path('mfa/register/complete/', MfaRegisterOptionsView.as_view(), name='mfa-register-complete'),
     path('mfa/authenticate/options/', MfaAuthenticateOptionsView.as_view(), name='mfa-authenticate-options'),
     path('mfa/authenticate/complete/', MfaAuthenticateCompleteView.as_view(), name='mfa-authenticate-complete'),
 
@@ -47,7 +47,8 @@ urlpatterns = [
     
     path('student-financials/<int:user_id>/', StudentFinancialsView.as_view(), name='student-financials'),
     
-    
+
+
 ]
 
 

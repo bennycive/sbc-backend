@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles'
+    'django.contrib.staticfiles',
+    "webauth",
     
     
 ]
@@ -73,23 +74,18 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-
-# By default, Django's session cookie is not sent cross-domain.
-# We need to set SameSite to 'None' (but it requires Secure).
-# For development (HTTP), we can temporarily use 'Lax'.
-# For production (HTTPS), you MUST use 'None'.
-
-# For Production (HTTPS):
-# SESSION_COOKIE_SAMESITE = 'None'
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SAMESITE = 'None'
-# CSRF_COOKIE_SECURE = True
-
 # For Development (HTTP):
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 
+# settings.py
+WEBAUTHN_RP_ID = "localhost"
+WEBAUTHN_RP_NAME = "UDOM Authentication System"
+WEBAUTHN_ORIGIN = "http://localhost:4200" 
 
+WEBAUTH_RP_ID = "localhost"
+WEBAUTH_RP_NAME = "UDOM Authentication System"
+WEBAUTH_ORIGIN = "http://localhost:4200"
 
 # DRF and JWT settings
 
@@ -100,6 +96,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     )
+    
 }
 
 # JWT settings

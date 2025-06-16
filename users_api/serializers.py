@@ -1,8 +1,10 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
+from .models import WebAuthnDevice 
+
 from .models import (
     CustomUser, Profile, AcademicYear, PaymentRecord, OtherPaymentRecord,
-    TranscriptCertificateRequest, ProvisionalResultRequest, StudentCertificate, Fingerprint
+    TranscriptCertificateRequest, ProvisionalResultRequest, StudentCertificate
 )
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -250,12 +252,67 @@ class StudentCertificateSerializer(serializers.ModelSerializer):
 #         }
 #         return representation
 
-class FingerprintSerializer(serializers.ModelSerializer):
+
+class WebAuthnDeviceSerializer(serializers.ModelSerializer):
+    # For BinaryField types (credential_id, public_key),
+    # it's best to represent them as base64url strings in JSON
+    # so they can be easily consumed by the frontend.
+    # The pywebauthn library handles the byte conversion on the backend.
+    credential_id = serializers.CharField()
+    public_key = serializers.CharField()
+    aaguid = serializers.CharField(required=False, allow_null=True) # UUIDField can be represented as string
+
     class Meta:
-        model = Fingerprint
-        fields = ['id', 'student', 'fingerprint_data', 'uploaded_at']
-        read_only_fields = ['id', 'uploaded_at']
+        model = WebAuthnDevice
+        fields = [
+            'id',
+            'user', # Or 'student' if your CustomUser is actually 'Student'
+            'name',
+            'credential_id',
+            'public_key',
+            'attestation_format',
+            'aaguid',
+            'sign_count',
+            'credential_type',
+            'registered_at',
+        ]
+        read_only_fields = [
+            'id',
+            'user', # Typically, the user is set by the view, not sent by client for creation
+            'registered_at',
+            'sign_count', # This is updated by the server during authentication
+        ]
 
     def create(self, validated_data):
-        print("Received validated data:", validated_data)
+        # When creating, ensure binary fields are converted from base64url strings
+        # that might be sent by the client, if you allow creation via this serializer.
+        # However, for WebAuthn registration, the verification view typically
+        # handles the creation directly after `verify_registration_response`.
+        if 'credential_id' in validated_data:
+            validated_data['credential_id'] = self.base64url_to_bytes(validated_data['credential_id'])
+        if 'public_key' in validated_data:
+            validated_data['public_key'] = self.base64url_to_bytes(validated_data['public_key'])
+        
+        # If 'user' isn't explicitly provided, ensure it's set from context or request.
+        # This serializer would primarily be for listing/retrieving devices.
+        # For actual registration, the view's `WebAuthnDevice.objects.create` is preferred.
         return super().create(validated_data)
+
+    def to_representation(self, instance):
+        # Convert binary fields to base64url strings for JSON output
+        ret = super().to_representation(instance)
+        if instance.credential_id:
+            ret['credential_id'] = self.bytes_to_base64url(instance.credential_id)
+        if instance.public_key:
+            ret['public_key'] = self.bytes_to_base64url(instance.public_key)
+        return ret
+    
+    # Helper methods (can be shared or placed in utils if used widely)
+    def base64url_to_bytes(self, data):
+        import base64
+        padding = '=' * (4 - (len(data) % 4)) if len(data) % 4 != 0 else ''
+        return base64.urlsafe_b64decode(data + padding)
+
+    def bytes_to_base64url(self, data):
+        import base64
+        return base64.urlsafe_b64encode(data).decode('utf-8').rstrip('=')

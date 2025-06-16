@@ -6,6 +6,7 @@ from django.db import models
 from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext_lazy as _
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, username, email, password=None, **extra_fields):
@@ -232,19 +233,43 @@ class StudentCertificate(models.Model):
 
 
 
-class Fingerprint(models.Model):
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    fingerprint_data = models.TextField()
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+class WebAuthnDevice(models.Model):
+    """
+    Stores WebAuthn credential information for a user.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="webauthn_devices",
+    )
+    
+    name = models.CharField(
+        max_length=250,
+        help_text=_("A nickname to help the user identify this authenticator"),
+        null=True, # Make it nullable if you don't require it during registration
+        blank=True
+    )
+    # The credential ID - unique identifier for the credential on the authenticator
+    credential_id = models.BinaryField(max_length=256, unique=True) # Should be unique per credential
+    # The public key associated with this credential
+    public_key = models.BinaryField(max_length=512) # COSE_Key in binary form
+    # The format of the attestation statement (e.g., "fido-u2f", "packed")
+    attestation_format = models.CharField(max_length=100)
+    # Authenticator AAGUID (Authenticator Attestation Global Unique Identifier)
+    aaguid = models.UUIDField(null=True, blank=True)
+    # The sign count - important for detecting cloning
+    sign_count = models.PositiveIntegerField()
+    # Type of credential, usually "public-key"
+    credential_type = models.CharField(max_length=50, default="public-key")
+    # Date/time when the device was registered
+    registered_at = models.DateTimeField(auto_now_add=True)
 
-    # WebAuthn fields
-    webauthn_credential_id = models.TextField(null=True, blank=True)  # Base64url encoded
-    webauthn_public_key = models.TextField(null=True, blank=True)     # COSE key or JWK format
-    webauthn_sign_count = models.PositiveIntegerField(null=True, blank=True)
-    webauthn_attestation_format = models.CharField(max_length=100, null=True, blank=True)
-    webauthn_aaguid = models.CharField(max_length=128, null=True, blank=True)
+    class Meta:
+        verbose_name = _("WebAuthn Device")
+        verbose_name_plural = _("WebAuthn Devices")
+        unique_together = (("user", "credential_id"),) # Ensure a user doesn't register the same device ID twice
 
     def __str__(self):
-        return f"Fingerprint of {self.student} uploaded on {self.uploaded_at}"
-
-
+        return f"{self.name or 'Unnamed Device'} for {self.user.username}"
+    
+    

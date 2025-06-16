@@ -244,19 +244,6 @@ class AdminSummaryView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
-from .serializers import FingerprintSerializer
-from .models import Fingerprint
-
-class FingerprintViewSet(viewsets.ModelViewSet):
-    queryset = Fingerprint.objects.all()
-    serializer_class = FingerprintSerializer
-    permission_classes = [AllowAny]
-    # permission_classes = [permissions.IsAuthenticated]
-
-    def create(self, request, *args, **kwargs):
-        print("Received fingerprint data:", request.data)
-        return super().create(request, *args, **kwargs)
-
 
 
 from .serializers import StudentCertificateSerializer

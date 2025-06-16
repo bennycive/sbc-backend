@@ -1,187 +1,138 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from django.contrib.auth import get_user_model
 import base64
-import os
 import json
-import hashlib
-import cbor2
+from http import HTTPStatus
+from secrets import token_bytes
+from datetime import datetime, timezone
 
-User = get_user_model()
+import jwt  # PyJWT
+from django.conf import settings
+from django.http import JsonResponse
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-RP_ID = 'localhost'  # Replace with your domain in production
-ORIGIN = 'http://localhost:4200'  # Adjust this to match your frontend origin
+from webauthn import verify_registration_response
+from webauthn.helpers.structs import RegistrationCredential
 
+from .models import WebAuthnDevice
 
-def base64url_to_bytes(data):
-    padding = '=' * (4 - (len(data) % 4)) if len(data) % 4 != 0 else ''
-    return base64.urlsafe_b64decode(data + padding)
+RP_ID = getattr(settings, "WEBAUTHN_RP_ID", "localhost")
+RP_NAME = getattr(settings, "WEBAUTHN_RP_NAME", "UDOM Authentication System")
+ORIGIN = getattr(settings, "WEBAUTHN_ORIGIN", "http://localhost:4200")
 
+# Helper to create unsigned JWT with challenge inside payload
+def create_challenge_jwt(challenge_bytes: bytes) -> str:
+    challenge_b64url = base64.urlsafe_b64encode(challenge_bytes).rstrip(b"=").decode("ascii")
+    header = {"alg": "none", "typ": "JWT"}
+    payload = {
+        "challenge": challenge_b64url,
+        "iat": int(datetime.now(timezone.utc).timestamp())
+    }
+    token = (
+        base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(b"=").decode()
+        + "."
+        + base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
+        + "."
+    )
+    return token
 
-def bytes_to_base64url(data):
-    return base64.b64encode(data).decode('utf-8')
+# Helper to decode challenge JWT and extract challenge bytes
+def decode_challenge_jwt(token: str) -> bytes:
+    try:
+        # Decode without verifying signature (alg=none)
+        payload = jwt.decode(token, options={"verify_signature": False})
+        challenge_b64url = payload.get("challenge")
+        if not challenge_b64url:
+            raise ValueError("Challenge missing from JWT payload")
+        # Add padding if needed
+        padding = "=" * (-len(challenge_b64url) % 4)
+        challenge_bytes = base64.urlsafe_b64decode(challenge_b64url + padding)
+        return challenge_bytes
+    except Exception as e:
+        raise ValueError(f"Invalid challenge JWT: {str(e)}")
 
-
-# class MfaRegisterOptionsView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         user = request.user
-#         challenge = os.urandom(32)
-#         request.session['challenge'] = bytes_to_base64url(challenge)
-
-#         user_id = str(user.id).encode('utf-8')
-#         user_name = user.username
-#         display_name = getattr(user, 'get_full_name', None)
-#         if callable(display_name):
-#             display_name = display_name()
-#         if not display_name:
-#             display_name = user.username
-
-#         registration_options = {
-#             "challenge": bytes_to_base64url(challenge),
-#             "rp": {
-#                 "name": "Your RP Name",
-#                 "id": RP_ID
-#             },
-#             "user": {
-#                 "id": bytes_to_base64url(user_id),
-#                 "name": user_name,
-#                 "displayName": display_name
-#             },
-#             "pubKeyCredParams": [
-#                 {"type": "public-key", "alg": -7},   # ES256
-#                 {"type": "public-key", "alg": -257}  # RS256
-#             ],
-#             "authenticatorSelection": {
-#                 "userVerification": "preferred"
-#             },
-#             "timeout": 60000,
-#             "attestation": "none"
-#         }
-        
-#         return Response(registration_options)
 
 class MfaRegisterOptionsView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        user = request.user
-        challenge = os.urandom(32)
-        request.session['challenge'] = bytes_to_base64url(challenge)
+    def get(self, request, *args, **kwargs):
+        display_name = request.user.username
 
-        user_id = str(user.id).encode('utf-8')
-        user_name = user.username
-        display_name = getattr(user, 'get_full_name', None)
-        if callable(display_name):
-            display_name = display_name()
-        if not display_name:
-            display_name = user.username
+        # Use cryptographically strong random bytes (e.g. 32 bytes)
+        challenge_bytes = token_bytes(32)
+        challenge_jwt = create_challenge_jwt(challenge_bytes)
 
-        registration_options = {
-            "challenge": bytes_to_base64url(challenge),
-            "rp": {
-                "name": "UDOM",
-                "id": RP_ID  # Make sure RP_ID is defined in your settings
-            },
-            "user": {
-                "id": bytes_to_base64url(user_id),
-                "name": user_name,
-                "displayName": display_name
-            },
-            "pubKeyCredParams": [
-                {"type": "public-key", "alg": -7},   # ES256
-                {"type": "public-key", "alg": -257}  # RS256
-            ],
-            # --- UPDATED SECTION ---
-            "authenticatorSelection": {
-                "authenticatorAttachment": "platform",
-                "userVerification": "required",
-                "requireResidentKey": True
-            },
-            # --- END OF UPDATE ---
-            "timeout": 60000,
-            "attestation": "none"
+        hex_id = f"{request.user.id:x}"
+        if len(hex_id) % 2 == 1:
+            hex_id = f"0{hex_id}"
+
+        response_data = {
+            "publicKey": {
+                "rp": {"id": RP_ID, "name": RP_NAME},
+                "user": {
+                    "id": hex_id,
+                    "name": request.user.email,
+                    "displayName": display_name,
+                },
+                "pubKeyCredParams": [
+                    {"type": "public-key", "alg": -7},  # ES256
+                    {"type": "public-key", "alg": -257} # RS256
+                ],
+                "attestation": "direct",
+                "timeout": 60000,
+                "challenge": challenge_jwt,  # Send JWT as challenge string
+            }
         }
-        
-        return Response(registration_options)
 
-# @method_decorator(csrf_exempt, name='dispatch')
-# class MfaRegisterCompleteView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         user = request.user
-#         challenge_b64 = request.session.get('challenge')
-#         if not challenge_b64:
-#             return Response({'error': 'Challenge not found in session'}, status=status.HTTP_400_BAD_REQUEST)
-#         expected_challenge = base64url_to_bytes(challenge_b64)
-#         registration_response = request.data
-
-#         try:
-#             client_data_json = base64url_to_bytes(registration_response.get('clientDataJSON'))
-#             attestation_object = base64url_to_bytes(registration_response.get('attestationObject'))
-
-#             client_data = json.loads(client_data_json.decode('utf-8'))
-#             if client_data['type'] != 'webauthn.create':
-#                 return Response({'error': 'Invalid clientData type'}, status=status.HTTP_400_BAD_REQUEST)
-#             if client_data['challenge'] != bytes_to_base64url(expected_challenge):
-#                 return Response({'error': 'Challenge mismatch'}, status=status.HTTP_400_BAD_REQUEST)
-#             if client_data['origin'] != ORIGIN:
-#                 return Response({'error': 'Origin mismatch'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             attestation = cbor2.loads(attestation_object)
-#             auth_data = attestation.get('authData')
-#             if not auth_data:
-#                 return Response({'error': 'No authData in attestation'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             rp_id_hash = auth_data[0:32]
-#             flags = auth_data[32]
-#             sign_count = int.from_bytes(auth_data[33:37], 'big')
-
-#             expected_rp_id_hash = hashlib.sha256(RP_ID.encode('utf-8')).digest()
-#             if rp_id_hash != expected_rp_id_hash:
-#                 return Response({'error': 'RP ID hash mismatch'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             credential_data = auth_data[37:]
-#             aaguid = credential_data[0:16]
-#             cred_id_len = int.from_bytes(credential_data[16:18], 'big')
-#             cred_id = credential_data[18:18+cred_id_len]
-#             credential_public_key = credential_data[18+cred_id_len:]
-
-#             user.profile.webauthn_credential_id = bytes_to_base64url(cred_id)
-#             user.profile.webauthn_public_key = bytes_to_base64url(credential_public_key)
-#             user.profile.save()
-
-#             return Response({"status": "ok"})
-
-#         except Exception as e:
-#             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class MfaRegisterCompleteView(APIView):
-    permission_classes = [IsAuthenticated]
+        return JsonResponse(response_data)
 
     def post(self, request, *args, **kwargs):
-        """
-        Temporarily fakes the verification process and always returns success.
-        This is for frontend debugging and must be replaced with real logic.
-        """
-        # It's still useful to see what the frontend is sending
-        print("--- MFA REGISTRATION COMPLETE (FAKE) ---")
-        print("Received payload:", request.data)
-        print("-----------------------------------------")
+        # Get challenge JWT from client payload
+        challenge_jwt = request.data.get("challengeJWT")
+        if not challenge_jwt:
+            return Response({"error": "Missing challenge JWT"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Always return a success response
-        return Response(
-            {"status": "success", "detail": "MFA registration faked successfully."},
-            status=status.HTTP_200_OK
-        )
+        try:
+            expected_challenge_bytes = decode_challenge_jwt(challenge_jwt)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+        data = request.data
+        name = data.get("name")
+
+        pub_key_credential_raw = data.get("pubKeyCredential")
+        if isinstance(pub_key_credential_raw, dict):
+            pub_key_credential = json.dumps(pub_key_credential_raw)
+        else:
+            pub_key_credential = pub_key_credential_raw
+
+        try:
+            verification = verify_registration_response(
+                credential=RegistrationCredential.parse_raw(pub_key_credential),
+                expected_challenge=expected_challenge_bytes,
+                expected_origin=ORIGIN,
+                expected_rp_id=RP_ID,
+                require_user_verification=False,
+            )
+
+            if WebAuthnDevice.objects.filter(user=request.user, credential_id=verification.credential_id).exists():
+                return Response({"error": "Device already registered."}, status=status.HTTP_409_CONFLICT)
+            print(request.data)
+            WebAuthnDevice.objects.create(
+                user=request.user,
+                name=name,
+                credential_id=verification.credential_id,
+                public_key=verification.credential_public_key,
+                attestation_format=verification.fmt,
+                credential_type=verification.credential_type,
+                sign_count=verification.sign_count,
+                aaguid=verification.aaguid
+            )
+
+            return Response(status=HTTPStatus.CREATED)
+        except Exception as e:
+            return Response({"error": f"Registration failed: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -189,62 +140,65 @@ class MfaAuthenticateOptionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        if not user.profile.webauthn_credential_id:
-            return Response({'error': 'No registered credential'}, status=status.HTTP_400_BAD_REQUEST)
+        challenge_bytes = token_bytes(32)
+        challenge_jwt = create_challenge_jwt(challenge_bytes)
 
-        challenge = os.urandom(32)
-        request.session['challenge'] = bytes_to_base64url(challenge)
+        credential_ids = WebAuthnDevice.objects.filter(user=request.user).values_list("credential_id", flat=True)
+        allow_credentials = [
+            {
+                "id": cred_id.hex(),
+                "type": "public-key",
+                "transports": ["usb", "ble", "nfc", "internal"],
+            }
+            for cred_id in credential_ids
+        ]
 
-        allow_credentials = [{
-            'type': 'public-key',
-            'id': user.profile.webauthn_credential_id,
-            'transports': ['usb', 'nfc', 'ble', 'internal']
-        }]
-
-        authentication_options = {
-            'challenge': bytes_to_base64url(challenge),
-            'rpId': RP_ID,
-            'allowCredentials': allow_credentials,
-            'userVerification': 'preferred',
-            'timeout': 60000,
-        }
-
-        return Response(authentication_options)
+        return Response(
+            {
+                "publicKey": {
+                    "challenge": challenge_jwt,
+                    "allowCredentials": allow_credentials,
+                    "timeout": 60000,
+                    "rpId": RP_ID,
+                    "userVerification": "preferred",
+                }
+            }
+        )
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class MfaAuthenticateCompleteView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
-        challenge_b64 = request.session.get('challenge')
-        if not challenge_b64:
-            return Response({'error': 'Challenge not found in session'}, status=status.HTTP_400_BAD_REQUEST)
-        expected_challenge = base64url_to_bytes(challenge_b64)
-        authentication_response = request.data
+        challenge_jwt = request.data.get("challengeJWT")
+        if not challenge_jwt:
+            return Response({"error": "Missing challenge JWT"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            client_data_json = base64url_to_bytes(authentication_response.get('clientDataJSON'))
-            authenticator_data = base64url_to_bytes(authentication_response.get('authenticatorData'))
-            signature = base64url_to_bytes(authentication_response.get('signature'))
-            user_handle = base64url_to_bytes(authentication_response.get('userHandle'))
+            expected_challenge_bytes = decode_challenge_jwt(challenge_jwt)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-            client_data = json.loads(client_data_json.decode('utf-8'))
-            if client_data['type'] != 'webauthn.get':
-                return Response({'error': 'Invalid clientData type'}, status=status.HTTP_400_BAD_REQUEST)
-            if client_data['challenge'] != bytes_to_base64url(expected_challenge):
-                return Response({'error': 'Challenge mismatch'}, status=status.HTTP_400_BAD_REQUEST)
-            if client_data['origin'] != ORIGIN:
-                return Response({'error': 'Origin mismatch'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            credential = AuthenticationCredential.parse_obj(request.data)
+            device = WebAuthnDevice.objects.get(user=request.user, credential_id=credential.raw_id)
 
-            # NOTE: Cryptographic signature verification is required here using user.profile.webauthn_public_key
-            # This is where you would verify `signature` against the `authenticatorData` + `clientDataHash`
-            # using the public key stored in the user profile.
+            verification = verify_authentication_response(
+                credential=credential,
+                expected_challenge=expected_challenge_bytes,
+                expected_rp_id=RP_ID,
+                expected_origin=ORIGIN,
+                credential_public_key=device.public_key,
+                credential_current_sign_count=device.sign_count,
+                require_user_verification=False,
+            )
 
-            # Assume verification is successful
-            return Response({"status": "ok"})
+            device.sign_count = verification.new_sign_count
+            device.save()
+            request.session["mfa_authenticated"] = True
+            return Response(status=status.HTTP_200_OK)
 
+        except WebAuthnDevice.DoesNotExist:
+            return Response({"error": "Device not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": f"Authentication failed: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
