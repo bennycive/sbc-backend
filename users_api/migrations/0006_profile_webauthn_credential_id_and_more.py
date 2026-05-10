@@ -12,15 +12,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='profile',
-            name='webauthn_credential_id',
-            field=models.TextField(blank=True, null=True),
+        # Use IF NOT EXISTS because 0008 (a parallel branch) may have already added these columns
+        migrations.RunSQL(
+            "ALTER TABLE users_api_profile ADD COLUMN IF NOT EXISTS webauthn_credential_id TEXT NULL",
+            migrations.RunSQL.noop,
         ),
-        migrations.AddField(
-            model_name='profile',
-            name='webauthn_public_key',
-            field=models.TextField(blank=True, null=True),
+        migrations.RunSQL(
+            "ALTER TABLE users_api_profile ADD COLUMN IF NOT EXISTS webauthn_public_key TEXT NULL",
+            migrations.RunSQL.noop,
         ),
         migrations.CreateModel(
             name='Fingerprint',

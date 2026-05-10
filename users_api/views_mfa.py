@@ -13,9 +13,20 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from webauthn import verify_registration_response
-from webauthn.helpers.structs import RegistrationCredential
+from webauthn.helpers.structs import (
+    AuthenticatorAttestationResponse,
+    RegistrationCredential,
+)
 
 from .models import WebAuthnDevice
+
+
+def _b64url_decode(value: str) -> bytes:
+    value = value.replace('-', '+').replace('_', '/')
+    padding = 4 - len(value) % 4
+    if padding != 4:
+        value += '=' * padding
+    return base64.b64decode(value)
 
 RP_ID = getattr(settings, "WEBAUTHN_RP_ID", "localhost")
 RP_NAME = getattr(settings, "WEBAUTHN_RP_NAME", "UDOM Authentication System")
@@ -102,14 +113,23 @@ class MfaRegisterOptionsView(APIView):
         name = data.get("name")
 
         pub_key_credential_raw = data.get("pubKeyCredential")
-        if isinstance(pub_key_credential_raw, dict):
-            pub_key_credential = json.dumps(pub_key_credential_raw)
+        if isinstance(pub_key_credential_raw, str):
+            cred_dict = json.loads(pub_key_credential_raw)
         else:
-            pub_key_credential = pub_key_credential_raw
+            cred_dict = pub_key_credential_raw
 
         try:
+            resp = cred_dict.get("response", {})
+            credential = RegistrationCredential(
+                id=cred_dict["id"],
+                raw_id=_b64url_decode(cred_dict["rawId"]),
+                response=AuthenticatorAttestationResponse(
+                    client_data_json=_b64url_decode(resp["clientDataJSON"]),
+                    attestation_object=_b64url_decode(resp["attestationObject"]),
+                ),
+            )
             verification = verify_registration_response(
-                credential=RegistrationCredential.parse_raw(pub_key_credential),
+                credential=credential,
                 expected_challenge=expected_challenge_bytes,
                 expected_origin=ORIGIN,
                 expected_rp_id=RP_ID,
